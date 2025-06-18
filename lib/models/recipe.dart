@@ -1,19 +1,19 @@
-class Product {
+class Recipe {
   final String id;
   final String name;
   final String imagePath;
   final String description;
-  final int price;
   final double rating;
-  final double distance; // dalam km
+  final double distance;
+  final String discount;
 
-  Product({
+  Recipe({
     required this.id,
     required this.name,
     required this.imagePath,
     required this.description,
-    required this.price,
     required this.rating,
     required this.distance,
+    required this.discount,
   });
 }

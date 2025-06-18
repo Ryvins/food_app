@@ -1,21 +1,27 @@
 import 'package:flutter/material.dart';
 
+/// Widget untuk menampilkan tab kategori dengan ikon di samping teks
 Widget categoryTabWithIcon(String title, String iconPath, bool isActive) {
   return Container(
-    margin: const EdgeInsets.only(right: 12),
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    height: 40, // tinggi fix
+    margin: const EdgeInsets.only(right: 8),
+    padding: const EdgeInsets.symmetric(horizontal: 12),
     decoration: BoxDecoration(
-      color: isActive ? Colors.blue[400] : Colors.grey[200],
-      borderRadius: BorderRadius.circular(30),
+      color: isActive ? Color(0xFF2FA8FF) : Colors.white,
+      border: isActive
+          ? null
+          : Border.all(color: Colors.grey.shade300, width: 1),
+      borderRadius: BorderRadius.circular(20),
     ),
+    alignment: Alignment.center,
     child: Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(iconPath, height: 24, width: 24),
+        Image.asset(iconPath, height: 20, width: 20),
         const SizedBox(width: 6),
         Text(
           title,
           style: TextStyle(
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             color: isActive ? Colors.white : Colors.black87,
           ),
@@ -23,4 +29,21 @@ Widget categoryTabWithIcon(String title, String iconPath, bool isActive) {
       ],
     ),
   );
+}
+
+class CategoryTabs extends StatelessWidget {
+  const CategoryTabs({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      children: [
+        categoryTabWithIcon('Telur', 'assets/images/icon_telur.jpg', true),
+        categoryTabWithIcon('Botok', 'assets/images/icon_botok.jpg', false),
+        categoryTabWithIcon('Kerupuk', 'assets/images/icon_kerupuk.jpg', false),
+        categoryTabWithIcon('Jus', 'assets/images/icon_jus.jpg', false),
+      ],
+    );
+  }
 }

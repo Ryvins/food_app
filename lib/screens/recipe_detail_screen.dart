@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
-import '../models/product.dart';
+import '../models/recipe.dart';
 import '../screens/cart_screen.dart';
 import '../data/cart_items.dart';
 
-/// Layar detail produk yang sinkron dengan CartNotifier sebagai source of truth
-class DetailScreen extends StatefulWidget {
-  final Product product;
-  const DetailScreen({super.key, required this.product});
+/// Layar detail resep dengan sync qty dari keranjang
+class RecipeDetailScreen extends StatefulWidget {
+  final Recipe recipe;
+  const RecipeDetailScreen({super.key, required this.recipe});
 
   @override
-  DetailScreenState createState() => DetailScreenState();
+  RecipeDetailScreenState createState() => RecipeDetailScreenState();
 }
 
-class DetailScreenState extends State<DetailScreen> {
+class RecipeDetailScreenState extends State<RecipeDetailScreen> {
   late int quantity;
 
   @override
   void initState() {
     super.initState();
-    quantity = cartNotifier.quantityOf(widget.product.id);
+    // Inisialisasi quantity sesuai isi keranjang
+    quantity = cartNotifier.quantityOf(widget.recipe.id);
     cartNotifier.addListener(_onCartChanged);
   }
 
@@ -30,42 +31,41 @@ class DetailScreenState extends State<DetailScreen> {
 
   void _onCartChanged() {
     setState(() {
-      quantity = cartNotifier.quantityOf(widget.product.id);
+      quantity = cartNotifier.quantityOf(widget.recipe.id);
     });
   }
 
   void _decrement() {
-    if (cartNotifier.quantityOf(widget.product.id) > 0) {
-      cartNotifier.removeItem(widget.product);
+    if (quantity > 0) {
+      // remove from the single source of truth…
+      cartNotifier.removeItem(widget.recipe);
+      // notifier’s listener will call setState and update `quantity` via quantityOf()
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Satu ${widget.product.name} dihapus dari keranjang'),
-          duration: const Duration(milliseconds: 800),
+          content: Text('Satu ${widget.recipe.name} dihapus dari keranjang'),
         ),
       );
     }
   }
 
   void _increment() {
-    cartNotifier.addItem(widget.product);
+    cartNotifier.addItem(widget.recipe);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Satu ${widget.product.name} ditambahkan ke keranjang'),
-        duration: const Duration(milliseconds: 800),
+        content: Text('Satu ${widget.recipe.name} ditambahkan ke keranjang'),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final cartCount = cartNotifier.count;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        title: Text(widget.product.name),
+        title: const Text('Detail Resep'),
         actions: [
           Stack(
             clipBehavior: Clip.none,
@@ -80,7 +80,7 @@ class DetailScreenState extends State<DetailScreen> {
                   );
                 },
               ),
-              if (cartCount > 0)
+              if (cartNotifier.items.isNotEmpty)
                 Positioned(
                   right: 6,
                   top: 6,
@@ -91,7 +91,7 @@ class DetailScreenState extends State<DetailScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Text(
-                      '$cartCount',
+                      '${cartNotifier.items.length}',
                       style: const TextStyle(fontSize: 10, color: Colors.white),
                     ),
                   ),
@@ -106,12 +106,13 @@ class DetailScreenState extends State<DetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Hero image
               Hero(
-                tag: widget.product.id,
+                tag: widget.recipe.id,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.asset(
-                    widget.product.imagePath,
+                    widget.recipe.imagePath,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -119,12 +120,13 @@ class DetailScreenState extends State<DetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Hero title
               Hero(
-                tag: '${widget.product.id}_title',
+                tag: '${widget.recipe.id}_title',
                 child: Material(
                   type: MaterialType.transparency,
                   child: Text(
-                    widget.product.name,
+                    widget.recipe.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -133,20 +135,54 @@ class DetailScreenState extends State<DetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Rp ${widget.product.price}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  color: Colors.orange,
-                  fontWeight: FontWeight.bold,
-                ),
+              // Rating & Distance
+              Row(
+                children: [
+                  const Icon(Icons.star, size: 16, color: Colors.amber),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.recipe.rating.toStringAsFixed(1),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(width: 16),
+                  const Icon(Icons.location_on, size: 16, color: Colors.green),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.recipe.distance.toStringAsFixed(1)} km',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
+              // Description
+              const Text(
+                'Deskripsi Resep',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               Text(
-                widget.product.description,
+                widget.recipe.description,
                 style: const TextStyle(fontSize: 16, height: 1.5),
               ),
+              const SizedBox(height: 16),
+              // Discount box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  widget.recipe.discount,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
+              // Quantity selector
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -159,8 +195,9 @@ class DetailScreenState extends State<DetailScreen> {
                     onPressed: _decrement,
                   ),
                   Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
+                      horizontal: 20,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
@@ -186,6 +223,7 @@ class DetailScreenState extends State<DetailScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              // Info quantity
               Center(
                 child: Text(
                   'Jumlah di keranjang: $quantity',
