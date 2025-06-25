@@ -5,7 +5,7 @@ import '../models/user_prefs.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  final baseUrl = dotenv.env['API_BASE_URL']!; // sesuaikan dengan setup-mu
+  final String baseUrl = dotenv.env['API_BASE_URL']!;
 
   /// Login pakai email & password
   /// - Simpan token + isi UserPrefs
