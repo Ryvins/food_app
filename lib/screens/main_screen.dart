@@ -26,7 +26,7 @@ class MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
-        selectedItemColor: Colors.orange,
+        selectedItemColor: Colors.lightBlue,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Eksplor'),

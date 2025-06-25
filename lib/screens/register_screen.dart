@@ -1,46 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:food_app/services/auth_service.dart';
+import 'package:food_app/screens/login_screen.dart';
 import 'package:food_app/screens/main_screen.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({Key? key}) : super(key: key);
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  _RegisterScreenState createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
   final _auth = AuthService();
 
-  bool _obscure = true;
   bool _loading = false;
+  bool _obscure = true;
   String? _error;
 
-  void _login() async {
+  Future<void> _register() async {
+    if (_nameCtrl.text.trim().isEmpty ||
+        _emailCtrl.text.trim().isEmpty ||
+        _phoneCtrl.text.trim().isEmpty ||
+        _passCtrl.text.isEmpty ||
+        _passCtrl.text != _confirmCtrl.text) {
+      setState(() {
+        _error = 'Pastikan semua field terisi dan password cocok';
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
 
-    final email = _emailCtrl.text.trim();
-    final pass = _passCtrl.text;
-
-    final success = await _auth.login(email, pass);
+    // your AuthService.register implementation should POST to register.php
+    final ok = await _auth.register(
+      name: _nameCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      phone: _phoneCtrl.text.trim(),
+      password: _passCtrl.text,
+    );
 
     setState(() {
       _loading = false;
     });
 
-    if (success) {
+    if (ok) {
+      // auto-login or go to login
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       setState(() {
-        _error = 'Email atau password salah';
+        _error = 'Registrasi gagal, silakan ulangi';
       });
     }
   }
@@ -54,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: Column(
             children: [
-              // Logo Telur Asin
+              // Logo
               ClipRRect(
                 borderRadius: BorderRadius.circular(48),
                 child: Image.asset(
@@ -65,28 +83,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Selamat datang di Telur Asin! Kami hadir untuk membantu Anda menemukan telur asin serta olahannya.',
-                textAlign: TextAlign.center,
+              const Text(
+                'Daftar Telur Asin',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                  height: 1.2,
-                  shadows: const [
-                    Shadow(
-                      color: Colors.black,
-                      offset: Offset(1, 1),
-                      blurRadius: 4,
-                    ),
-                  ],
-                  backgroundColor: Colors.blue.shade600,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 32),
 
-              // Form Card
+              // Form
               Card(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -96,7 +103,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // Email Field
+                      TextField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nama Lengkap',
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
@@ -105,9 +119,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           prefixIcon: Icon(Icons.email),
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Password Field
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'No. HP',
+                          prefixIcon: Icon(Icons.phone),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _passCtrl,
                         obscureText: _obscure,
@@ -125,8 +146,16 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _confirmCtrl,
+                        obscureText: _obscure,
+                        decoration: const InputDecoration(
+                          labelText: 'Konfirmasi Password',
+                          prefixIcon: Icon(Icons.lock_outline),
+                        ),
+                      ),
 
-                      // Error message
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -136,16 +165,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                       const SizedBox(height: 24),
 
-                      // Login Button
                       SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: _loading ? null : _login,
+                          onPressed: _loading ? null : _register,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue.shade600,
                             foregroundColor: Colors.white,
-                            textStyle: const TextStyle(fontSize: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -155,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: Colors.white,
                                 )
                               : const Text(
-                                  'Login',
+                                  'Daftar',
                                   style: TextStyle(fontSize: 16),
                                 ),
                         ),
@@ -168,13 +195,13 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  Navigator.push(
+                  Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
                   );
                 },
                 child: const Text(
-                  'Belum punya akun? Daftar di sini',
+                  'Sudah punya akun? Masuk di sini',
                   style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ),

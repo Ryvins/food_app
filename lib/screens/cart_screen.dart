@@ -1,160 +1,175 @@
 import 'package:flutter/material.dart';
-import 'package:food_app/screens/checkout_screen.dart';
-import '../models/product.dart';
+import 'package:intl/intl.dart';
+import '../models/cart_notifier.dart';
 import '../models/recipe.dart';
-import '../data/cart_items.dart';
+import 'checkout_screen.dart';
 
-class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
-
-  @override
-  CartScreenState createState() => CartScreenState();
-}
-
-class CartScreenState extends State<CartScreen> {
-  @override
-  void initState() {
-    super.initState();
-    cartNotifier.addListener(_onCartChanged);
-  }
-
-  @override
-  void dispose() {
-    cartNotifier.removeListener(_onCartChanged);
-    super.dispose();
-  }
-
-  void _onCartChanged() => setState(() {});
+class CartScreen extends StatelessWidget {
+  const CartScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Hitung quantity per item & kumpulkan unique items
-    final counts = <String, int>{};
-    final uniqueItems = <dynamic>[];
-    for (var item in cartNotifier.items) {
-      final id = (item is Product)
-          ? item.id
-          : (item is Recipe)
-          ? item.id
-          : null;
-      if (id == null) continue;
-      if (!counts.containsKey(id)) {
-        counts[id] = 1;
-        uniqueItems.add(item);
-      } else {
-        counts[id] = counts[id]! + 1;
-      }
-    }
+    final cart = cartNotifier;
+    final currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Keranjang'),
-        backgroundColor: Colors.orange,
-      ),
-      body: Column(
-        children: [
-          // Daftar item
-          if (uniqueItems.isEmpty)
-            const Expanded(child: Center(child: Text('Keranjang kosong')))
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: uniqueItems.length,
-                itemBuilder: (_, i) {
-                  final item = uniqueItems[i];
-                  final qty = counts[item.id]!;
-                  final image = Image.asset(
-                    item.imagePath,
-                    width: 50,
-                    height: 50,
-                    fit: BoxFit.cover,
-                  );
-                  final title = item.name;
-                  final subtitle = item is Product
-                      ? 'Harga: Rp ${item.price}'
-                      : 'Diskon: ${item.discount}';
+    return AnimatedBuilder(
+      animation: cart,
+      builder: (context, _) {
+        // Unique items by id
+        final seen = <String>{};
+        final uniqueItems = <dynamic>[];
+        for (var item in cart.items) {
+          if (!seen.contains(item.id)) {
+            seen.add(item.id);
+            uniqueItems.add(item);
+          }
+        }
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Keranjang'),
+            backgroundColor: Colors.lightBlue,
+            foregroundColor: Colors.white,
+            centerTitle: true,
+            actions: [
+              if (cart.count > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Center(
+                    child: Text(
+                      cart.count.toString(),
+                      style: const TextStyle(fontSize: 18),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+            ],
+          ),
+          body: uniqueItems.isEmpty
+              ? const Center(child: Text('Keranjang kosong'))
+              : Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: uniqueItems.length,
+                        itemBuilder: (ctx, i) {
+                          final item = uniqueItems[i];
+                          final qty = cart.quantityOf(item.id);
+                          final price = item is Recipe
+                              ? item.price
+                              : item.price;
+                          final subtitle = item is Recipe
+                              ? '${currency.format(item.price)} • Diskon: ${item.discount}'
+                              : currency.format(item.price);
+
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  item.imagePath.startsWith('http')
+                                      ? item.imagePath
+                                      : 'http://10.0.2.2/api_food/${item.imagePath}',
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      const Icon(Icons.broken_image),
+                                ),
+                              ),
+                              title: Text(
+                                item.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(subtitle),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () =>
+                                        cartNotifier.removeItem(item),
+                                  ),
+                                  Text(
+                                    qty.toString(),
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      color: Colors.green,
+                                    ),
+                                    onPressed: () => cartNotifier.addItem(item),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    child: ListTile(
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: image,
-                      ),
-                      title: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(subtitle),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.remove_circle_outline,
-                              color: Colors.redAccent,
-                            ),
-                            onPressed: qty > 0
-                                ? () => cartNotifier.removeItem(item)
-                                : null,
-                          ),
                           Text(
-                            qty.toString(),
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              color: Colors.green,
+                            'Subtotal: ${currency.format(cart.totalPrice)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                            onPressed: () => cartNotifier.addItem(item),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CheckoutScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'Checkout',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-
-          // Tombol Checkout
-          if (uniqueItems.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    // Bisa bersihkan cartNotifier.clear() di sini jika ingin reset
-                    // cartNotifier.clear();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
-                    );
-                  },
-                  child: const Text(
-                    'Checkout',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  ],
                 ),
-              ),
-            ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

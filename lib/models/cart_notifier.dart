@@ -1,6 +1,8 @@
+// lib/data/cart_notifier.dart
+
 import 'package:flutter/foundation.dart';
-import '../models/product.dart';
-import '../models/recipe.dart';
+import 'product.dart';
+import 'recipe.dart';
 
 /// Manages cart items with ChangeNotifier for real-time updates
 class CartNotifier extends ChangeNotifier {
@@ -39,6 +41,31 @@ class CartNotifier extends ChangeNotifier {
   void clear() {
     _items.clear();
     notifyListeners();
+  }
+
+  /// Check if the cart contains a specific product/recipe by id
+  bool contains(String id) {
+    return _items.any(
+      (item) =>
+          (item is Product && item.id == id) ||
+          (item is Recipe && item.id == id),
+    );
+  }
+
+  /// Total price of all items in the cart
+  double get totalPrice {
+    final seen = <String>{};
+    double total = 0;
+    for (var item in _items) {
+      if (item is Product || item is Recipe) {
+        if (!seen.contains(item.id)) {
+          final qty = quantityOf(item.id);
+          total += item.price * qty;
+          seen.add(item.id);
+        }
+      }
+    }
+    return total;
   }
 }
 

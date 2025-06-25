@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../screens/cart_screen.dart';
+import '../models/cart_notifier.dart';
+import '../models/user_prefs.dart';
 import '../widgets/product_list_area.dart';
-import '../data/cart_items.dart';
+import 'cart_screen.dart';
 
-/// ExploreScreen dengan badge keranjang realtime dan pencarian
+/// ExploreScreen dengan badge keranjang realtime, greeting dinamis, dan pencarian
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
   @override
-  ExploreScreenState createState() => ExploreScreenState();
+  _ExploreScreenState createState() => _ExploreScreenState();
 }
 
-class ExploreScreenState extends State<ExploreScreen> {
+class _ExploreScreenState extends State<ExploreScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String searchQuery = '';
 
@@ -35,9 +36,16 @@ class ExploreScreenState extends State<ExploreScreen> {
 
   void _onCartChanged() => setState(() {});
 
+  String _greeting(int hour) {
+    if (hour < 12) return 'Selamat Pagi';
+    if (hour < 15) return 'Selamat Siang';
+    if (hour < 18) return 'Selamat Sore';
+    return 'Selamat Malam';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userName = 'TestUser';
+    final userName = UserPrefs.name.isNotEmpty ? UserPrefs.name : 'User';
     final cartCount = cartNotifier.count;
 
     return Scaffold(
@@ -71,23 +79,35 @@ class ExploreScreenState extends State<ExploreScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const CircleAvatar(
+                  // CircleAvatar berisi inisial nama user
+                  CircleAvatar(
                     radius: 22,
-                    backgroundImage: AssetImage('assets/images/avatar.png'),
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      UserPrefs.initial,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2FA8FF),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Greeting and icons
+            // Greeting & icons
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Selamat Siang',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  Text(
+                    _greeting(DateTime.now().hour),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   Row(
                     children: [
@@ -165,7 +185,7 @@ class ExploreScreenState extends State<ExploreScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Product list area with searchQuery passed
+            // Product list area
             Expanded(child: ProductListArea(searchQuery: searchQuery)),
           ],
         ),

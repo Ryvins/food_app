@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/recipe.dart';
 import '../screens/cart_screen.dart';
-import '../data/cart_items.dart';
+import '../models/cart_notifier.dart';
 
-/// Layar detail resep dengan sync qty dari keranjang
+/// Layar detail resep yang sinkron dengan CartNotifier sebagai source of truth
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
   const RecipeDetailScreen({super.key, required this.recipe});
 
   @override
-  RecipeDetailScreenState createState() => RecipeDetailScreenState();
+  _RecipeDetailScreenState createState() => _RecipeDetailScreenState();
 }
 
-class RecipeDetailScreenState extends State<RecipeDetailScreen> {
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   late int quantity;
+  late final NumberFormat _currency;
 
   @override
   void initState() {
     super.initState();
-    // Inisialisasi quantity sesuai isi keranjang
+    // Inisialisasi quantity dan formatter
     quantity = cartNotifier.quantityOf(widget.recipe.id);
+    _currency = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
     cartNotifier.addListener(_onCartChanged);
   }
 
@@ -35,37 +42,36 @@ class RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
   }
 
-  void _decrement() {
-    if (quantity > 0) {
-      // remove from the single source of truth…
+  void _updateCart(int delta) {
+    if (delta > 0) {
+      cartNotifier.addItem(widget.recipe);
+      _showMessage('Satu ${widget.recipe.name} ditambahkan ke keranjang');
+    } else if (delta < 0 && quantity > 0) {
       cartNotifier.removeItem(widget.recipe);
-      // notifier’s listener will call setState and update `quantity` via quantityOf()
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Satu ${widget.recipe.name} dihapus dari keranjang'),
-        ),
-      );
+      _showMessage('Satu ${widget.recipe.name} dihapus dari keranjang');
     }
   }
 
-  void _increment() {
-    cartNotifier.addItem(widget.recipe);
+  void _showMessage(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Satu ${widget.recipe.name} ditambahkan ke keranjang'),
-      ),
+      SnackBar(content: Text(msg), duration: const Duration(milliseconds: 800)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final cartCount = cartNotifier.count;
+    final imageUrl = widget.recipe.imagePath.startsWith('http')
+        ? widget.recipe.imagePath
+        : 'http://10.0.2.2/api_food/${widget.recipe.imagePath}';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
-        title: const Text('Detail Resep'),
+        title: Text(widget.recipe.name, overflow: TextOverflow.ellipsis),
         actions: [
           Stack(
             clipBehavior: Clip.none,
@@ -80,18 +86,15 @@ class RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   );
                 },
               ),
-              if (cartNotifier.items.isNotEmpty)
+              if (cartCount > 0)
                 Positioned(
                   right: 6,
                   top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
+                  child: CircleAvatar(
+                    radius: 10,
+                    backgroundColor: Colors.red,
                     child: Text(
-                      '${cartNotifier.items.length}',
+                      '$cartCount',
                       style: const TextStyle(fontSize: 10, color: Colors.white),
                     ),
                   ),
@@ -101,140 +104,161 @@ class RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Hero image
-              Hero(
-                tag: widget.recipe.id,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    widget.recipe.imagePath,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Hero title
-              Hero(
-                tag: '${widget.recipe.id}_title',
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Text(
-                    widget.recipe.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Hero(
+              tag: 'recipe_image_${widget.recipe.id}',
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (ctx, child, progress) {
+                    if (progress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: progress.expectedTotalBytes != null
+                            ? progress.cumulativeBytesLoaded /
+                                  progress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 80,
+                      color: Colors.grey,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              // Rating & Distance
-              Row(
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.star, size: 16, color: Colors.amber),
-                  const SizedBox(width: 4),
-                  Text(
-                    widget.recipe.rating.toStringAsFixed(1),
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.location_on, size: 16, color: Colors.green),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.recipe.distance.toStringAsFixed(1)} km',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Description
-              const Text(
-                'Deskripsi Resep',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.recipe.description,
-                style: const TextStyle(fontSize: 16, height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              // Discount box
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  widget.recipe.discount,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Quantity selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.remove_circle_outline,
-                      size: 28,
-                      color: Colors.redAccent,
-                    ),
-                    onPressed: _decrement,
-                  ),
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      quantity.toString(),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                  Hero(
+                    tag: 'recipe_title_${widget.recipe.id}',
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: Text(
+                        widget.recipe.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_circle_outline,
-                      size: 28,
-                      color: Colors.green,
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(widget.recipe.rating.toStringAsFixed(1)),
+                      const SizedBox(width: 16),
+                      const Icon(
+                        Icons.location_on,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Text('${widget.recipe.distance.toStringAsFixed(1)} km'),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Harga: ${_currency.format(widget.recipe.price)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
                     ),
-                    onPressed: _increment,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Deskripsi Resep',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.recipe.description,
+                    style: const TextStyle(fontSize: 16, height: 1.5),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      widget.recipe.discount,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle_outline,
+                          size: 28,
+                          color: Colors.redAccent,
+                        ),
+                        onPressed: () => _updateCart(-1),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '$quantity',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_circle_outline,
+                          size: 28,
+                          color: Colors.green,
+                        ),
+                        onPressed: () => _updateCart(1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Text(
+                      'Di keranjang: $quantity',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              // Info quantity
-              Center(
-                child: Text(
-                  'Jumlah di keranjang: $quantity',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.blueAccent,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

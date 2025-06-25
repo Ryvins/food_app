@@ -5,7 +5,7 @@ class Product {
   final String description;
   final int price;
   final double rating;
-  final double distance; // dalam km
+  final double distance;
 
   Product({
     required this.id,
@@ -16,4 +16,17 @@ class Product {
     required this.rating,
     required this.distance,
   });
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'].toString();
+    return Product(
+      id: 'p_$rawId',
+      name: json['name'] as String,
+      imagePath: json['image_path'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      price: int.tryParse(json['price'].toString()) ?? 0,
+      rating: double.tryParse(json['rating'].toString()) ?? 0.0,
+      distance: double.tryParse(json['distance'].toString()) ?? 0.0,
+    );
+  }
 }
